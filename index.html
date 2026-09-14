@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NMCI Secure Workstation — CHESTER.C.H</title>
+<style>
+/* ===================================================================
+   HANDLER: everything you'd want to change lives in the CONFIG block
+   in the <script> at the bottom of this file. Nothing here is required
+   reading. Colors below are the DoD-workstation palette.
+   =================================================================== */
+:root{
+  --dod-blue:#0B2E4F;
+  --dod-blue-lt:#12456F;
+  --chrome:#C9C9C1;
+  --chrome-dk:#8E8E86;
+  --paper:#EDEDE6;
+  --ink:#1B1B18;
+  --alert:#8B1A1A;
+  --wrong:#B8901C;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:#2A2A28;
+  font-family:Tahoma,Verdana,Geneva,"DejaVu Sans",sans-serif;
+  font-size:14px;
+  color:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+#bezel{
+  width:min(1040px,100%);
+  background:#1A1A19;
+  border:1px solid #000;
+  border-radius:6px;
+  padding:14px 14px 30px;
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+  position:relative;
+}
+#tag{
+  position:absolute;left:18px;bottom:7px;
+  font-size:10px;letter-spacing:.06em;color:#7A7A72;
+  font-family:"Courier New",monospace;
+}
+#screen{
+  background:var(--paper);
+  height:min(660px,78vh);
+  min-height:460px;
+  overflow:hidden;
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.stage{display:none;flex:1;min-height:0;flex-direction:column}
+.stage.on{display:flex}
+
+/* ---------- consent banner ---------- */
+#consent{background:var(--dod-blue);color:#E8EFF5;align-items:center;justify-content:center;padding:34px}
+#consent .inner{max-width:620px}
+#consent h1{font-size:17px;margin:0 0 18px;letter-spacing:.04em;font-weight:700}
+#consent p{font-size:12.5px;line-height:1.65;margin:0 0 12px;color:#BFD2E0}
+/* ---------- shared chrome ---------- */
+.titlebar{
+  background:linear-gradient(180deg,var(--dod-blue-lt),var(--dod-blue));
+  color:#fff;padding:5px 10px;font-size:12px;font-weight:700;
+  display:flex;justify-content:space-between;align-items:center;flex:none;
+}
+.titlebar span{font-weight:400;opacity:.8;font-size:11px}
+.pane{flex:1;min-height:0;overflow:auto;padding:26px 30px}
+.field{margin:0 0 14px;max-width:340px}
+.field label{display:block;font-size:11px;margin-bottom:4px;color:#4A4A44}
+input[type=text],input[type=password]{
+  width:100%;padding:6px 8px;font-size:14px;
+  font-family:"Courier New",monospace;
+  border:2px inset var(--chrome-dk);background:#fff;color:var(--ink);
+}
+button{
+  font-family:inherit;font-size:13px;padding:5px 18px;
+  background:var(--chrome);border:2px outset #E4E4DC;color:var(--ink);cursor:pointer;
+}
+button:active{border-style:inset}
+button:disabled{color:#8A8A82;cursor:default;border-style:outset}
+button:focus-visible,input:focus-visible,.icon:focus-visible{outline:2px solid var(--dod-blue-lt);outline-offset:2px}
+.note{font-size:11.5px;color:#55554E;line-height:1.6;max-width:460px}
+.mono{font-family:"Courier New",monospace}
+.err{color:var(--alert);font-size:12px;min-height:16px;margin:8px 0 0;font-weight:700}
+.plate{
+  border:1px solid var(--chrome-dk);background:#E3E3DA;
+  padding:10px 12px;font-family:"Courier New",monospace;font-size:12.5px;
+  line-height:1.7;max-width:460px;margin:0 0 18px;white-space:pre-wrap;
+}
+h2{font-size:15px;margin:0 0 6px}
+.sub{font-size:12px;color:#55554E;margin:0 0 20px}
+
+/* ---------- desktop ---------- */
+#deskwrap{flex:1;min-height:0;display:flex;flex-direction:column;background:#5A7286}
+#desk{flex:1;min-height:0;overflow:auto;padding:18px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px 2px;align-content:start}
+.icon{
+  background:none;border:1px solid transparent;color:#fff;
+  padding:8px 4px;text-align:center;cursor:pointer;font-size:11px;line-height:1.35;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-shadow:0 1px 2px rgba(0,0,0,.7);word-break:break-all;
+}
+.icon:hover{background:rgba(255,255,255,.12)}
+.icon.seen{border:1px dotted rgba(255,255,255,.55)}
+.icon .sheet{
+  width:34px;height:42px;background:var(--paper);border:1px solid #6E6E66;
+  position:relative;flex:none;
+}
+.icon .sheet::after{
+  content:"";position:absolute;top:0;right:0;border-width:0 9px 9px 0;
+  border-style:solid;border-color:#6E6E66 #5A7286;
+}
+.icon .sheet b{
+  position:absolute;bottom:3px;left:0;right:0;text-align:center;
+  font-size:8px;color:#55554E;text-shadow:none;font-family:"Courier New",monospace;
+}
+#taskbar{
+  flex:none;background:var(--chrome);border-top:2px solid #E4E4DC;
+  padding:6px 10px;display:flex;gap:14px;align-items:center;justify-content:space-between;
+  font-size:11.5px;
+}
+#trace{display:flex;align-items:center;gap:8px}
+#bar{width:130px;height:12px;border:1px inset var(--chrome-dk);background:#fff}
+#fill{height:100%;width:0;background:#4C7A3F;transition:width .4s}
+
+/* ---------- file window ---------- */
+#modal{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:24px}
+#modal.on{display:flex}
+#win{background:var(--chrome);border:2px outset #E4E4DC;width:min(560px,100%);max-height:100%;display:flex;flex-direction:column}
+#winbody{background:#fff;margin:3px;padding:18px 20px;overflow:auto;font-family:"Courier New",monospace;font-size:12.5px;line-height:1.75;white-space:pre-wrap}
+#winfoot{padding:6px 8px;text-align:right;flex:none}
+.x{background:var(--chrome);border:2px outset #E4E4DC;font-weight:700;padding:0 7px;font-size:12px;line-height:1.5}
+.odd{color:var(--wrong)}
+
+/* ---------- end states ---------- */
+#burn{background:#4A0D0D;color:#F2D9D9;align-items:center;justify-content:center;text-align:center;padding:40px}
+#done{background:var(--dod-blue);color:#E8EFF5;align-items:center;justify-content:center;text-align:center;padding:40px}
+#burn h1,#done h1{font-size:20px;letter-spacing:.06em;margin:0 0 14px}
+#burn p,#done p{font-size:13px;line-height:1.7;max-width:460px;margin:0 auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="bezel">
+  <div id="screen">
+
+    <!-- 1. CONSENT ------------------------------------------------ -->
+    <section class="stage on" id="consent">
+      <div class="inner">
+        <h1>U.S. Government Information System — Notice and Consent</h1>
+        <p>You are accessing a U.S. Government information system. This system is provided for authorized use only.</p>
+        <p>By using this system you consent to monitoring, interception, search, and seizure of any communication or data transiting or stored on it, for any lawful purpose.</p>
+        <p>Unauthorized use may result in criminal prosecution.</p>
+        <p style="margin-top:22px"><button id="agree">I agree</button></p>
+      </div>
+    </section>
+
+    <!-- 2. LOGON -------------------------------------------------- -->
+    <section class="stage" id="logon">
+      <div class="titlebar">NMCI Domain Logon <span>NAVSTA BOSTON</span></div>
+      <div class="pane">
+        <h2>Log on to Windows</h2>
+        <p class="sub">Smart card reader not detected. Fall back to password authentication.</p>
+        <div class="field">
+          <label for="usr">User name</label>
+          <input id="usr" type="text" value="CHESTER.C.H" readonly>
+        </div>
+        <div class="field">
+          <label for="pwd">Password</label>
+          <input id="pwd" type="password" autocomplete="off" spellcheck="false">
+        </div>
+        <p><button id="login">Log on</button></p>
+        <p class="err" id="e1"></p>
+        <p class="note" style="margin-top:22px">
+          Password recovery hint set by user:<br>
+          <span class="mono">STATION + HULL, NO SPACES</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. CRYPTO VOLUME ------------------------------------------ -->
+    <section class="stage" id="crypt">
+      <div class="titlebar">Encrypted Volume <span>DRIVE D:</span></div>
+      <div class="pane">
+        <h2>Volume D: is encrypted</h2>
+        <p class="sub">Supply the recovery passphrase to mount the volume.</p>
+        <div class="plate" id="escrow">
+KEY ESCROW FRAGMENT
+-------------------
+CIPHERTEXT ...... FDUFRVD
+METHOD .......... ROTATION (ALPHABETIC)
+ROTATION VALUE .. SEE ASSET TAG
+        </div>
+        <div class="field">
+          <label for="key">Recovery passphrase</label>
+          <input id="key" type="text" autocomplete="off" spellcheck="false">
+        </div>
+        <p><button id="mount">Mount volume</button></p>
+        <p class="err" id="e2"></p>
+      </div>
+    </section>
+
+    <!-- 4. DESKTOP ------------------------------------------------ -->
+    <section class="stage" id="deskstage">
+      <div id="deskwrap">
+        <div id="desk"></div>
+        <div id="taskbar">
+          <span id="opened">Opened 0 of 11</span>
+          <div id="trace">
+            <span>Network audit</span>
+            <div id="bar"><div id="fill"></div></div>
+            <span id="tracepct" class="mono">0%</span>
+          </div>
+          <button id="submit" disabled>Submit findings</button>
+        </div>
+      </div>
+      <div id="modal">
+        <div id="win">
+          <div class="titlebar"><span id="winname" style="font-weight:700;opacity:1;font-size:12px"></span><button class="x" id="closewin">×</button></div>
+          <div id="winbody"></div>
+          <div id="winfoot"><button id="closewin2">Close</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. SUBMIT ------------------------------------------------- -->
+    <section class="stage" id="answer">
+      <div class="titlebar">Session log <span>D:\</span></div>
+      <div class="pane">
+        <h2>Record findings</h2>
+        <p class="sub">Enter the recovered string. Spaces are ignored.</p>
+        <div class="field" style="max-width:420px">
+          <input id="ans" type="text" autocomplete="off" spellcheck="false">
+        </div>
+        <p><button id="check">Record</button> <button id="back">Back to desktop</button></p>
+        <p class="err" id="e3"></p>
+      </div>
+    </section>
+
+    <!-- 6. END STATES --------------------------------------------- -->
+    <section class="stage" id="burn">
+      <div>
+        <h1>Session terminated</h1>
+        <p>Anomalous access logged and reported to NCIS. Physical location of terminal recorded. Credentials revoked.</p>
+        <p style="margin-top:18px"><button id="retry">Restart</button></p>
+      </div>
+    </section>
+
+    <section class="stage" id="done">
+      <div>
+        <h1 id="donetitle">Findings recorded</h1>
+        <p id="donetext"></p>
+        <p style="margin-top:18px"><button id="retry2">Restart</button></p>
+      </div>
+    </section>
+
+  </div>
+  <div id="tag">PROPERTY OF U.S. NAVY · NAVSTA BOSTON · HULL DDG-003 · NMCI ASSET 41-7729</div>
+</div>
+
+<script>
+/* ===================================================================
+   HANDLER CONFIG — change anything here.
+   -------------------------------------------------------------------
+   PASSWORD   : from the asset tag on the bezel (station + hull).
+   PASSPHRASE : the ROT-3 ciphertext FDUFRVD decodes to CARCOSA.
+                Rotation value = the hull number (003) on the asset tag.
+                If you change this, update the ciphertext in the HTML
+                above (the #escrow block) to match.
+   ANSWER     : third letter of each filename, in the order shown.
+   TRACE      : set ENABLED to false to remove the detection timer.
+   Press Ctrl+Shift+H at any time for the Handler solution card.
+   =================================================================== */
+const CONFIG = {
+  PASSWORD:   "BOSTON003",
+  PASSPHRASE: "CARCOSA",
+  ANSWER:     "IAMAWAKENOW",
+  TRACE: { ENABLED:true, PER_SECOND:0.35, PER_FILE:2, PER_MISTAKE:12 }
+};
+
+/* Files. Third letter of each name, in this order, spells the answer.
+   Change a name and you change the answer — keep the 3rd letters. */
+const FILES = [
+  ["SHIPYARD_ACCESS.xlsx",
+   "DRY DOCK 3 — ACCESS ROSTER\n\nBADGE   NAME                 CLEARED\n0041    RIORDAN, T.          YES\n0052    VUONO, A.            YES\n0067    —                    YES\n\nBadge 0067 has no name on file. It has been\ncleared through the gate 214 times this year."],
+  ["STANDING_ORDERS.pdf",
+   "STANDING ORDERS — WATCH OFFICER\n\n1. Log all contacts.\n2. Challenge all unscheduled approaches.\n3. Do not acknowledge signals originating\n   from bearing 000 between 0200 and 0400.\n4. Item 3 is not to be discussed ashore."],
+  ["SUMMARY_FY15.docx",
+   "FISCAL SUMMARY FY2015 — DRAFT\n\nOperating costs are within projection.\nFuel, within projection.\nBerthing, within projection.\n\nLine item 'HOSPITALITY — BROADALBIN' has\nbeen carried forward, unpaid, since 1959."],
+  ["STAFF_ROSTER.xlsx",
+   "SHORE STAFF — CURRENT\n\n29 assigned.\n29 present.\n30 accounted for at muster, 11 AUG.\n\nDiscrepancy raised and closed same day.\nNo explanation is recorded in the log."],
+  ["TOWING_SCHEDULE.pdf",
+   "HARBOR TOWING — WEEK 33\n\nTUE 0600  YTB-771  berth 4 to dry dock 3\nWED 0600  YTB-771  dry dock 3 to berth 4\nTHU 0600  YTB-771  berth 4 to dry dock 3\nFRI 0600  YTB-771  dry dock 3 to berth 4\n\nNo vessel is listed under tow on any run."],
+  ["SEAWALL_SURVEY.pdf",
+   "SEAWALL CONDITION SURVEY\n\nSections A through F: satisfactory.\nSection G: satisfactory.\nSection H: no longer accessible. Survey team\nreports the stair down to H ends in masonry.\nDrawings show the stair as original to 1903.\nThe drawings show no masonry."],
+  ["SIKORSKY_MAINT.log",
+   "ROTARY WING MAINTENANCE LOG\n\n0730  preflight  nominal\n0900  hover check nominal\n1115  airframe hours logged: 1,114.2\n1116  airframe hours logged: 1,114.2\n1117  airframe hours logged: 1,114.2\n\nAircraft has not left the pad since April."],
+  ["FLEET_READINESS.docx",
+   "READINESS ASSESSMENT — CONFIDENTIAL\n\nMaterial readiness: C-2\nPersonnel readiness: C-1\nMorale: not assessed\n\nThe assessing officer has declined to sign\nthis document on four consecutive quarters\nand remains in his post."],
+  ["MANNING_REPORT.docx",
+   "MANNING REPORT — BILLET REVIEW\n\nAll billets filled.\n\nOne billet appears twice in the table of\norganization under two different titles.\nBoth are filled. Both are filled by the\nsame officer. He is aware of this."],
+  ["PROCUREMENT_15.xlsx",
+   "PROCUREMENT — MISCELLANEOUS\n\nLAMP OIL ................ 400 gal\nLAMP OIL ................ 400 gal\nLAMP OIL ................ 400 gal\n\nThe station has been on shore power since\n1961. Delivery is accepted monthly at the\nnorth gate by a party not on the roster."],
+  ["NEWPORT_TRANSFER.pdf",
+   "TRANSFER ORDER — DETACHMENT\n\nCAPT C. HAMILTON CHESTER is detached from\nNAVSTA BOSTON and will report to NAVSTA\nNEWPORT not later than 01 SEP.\n\nThe order is dated 01 SEP 1959.\nIt has not been executed.\nIt is reissued, unchanged, every month."]
+];
+
+/* ---------- plumbing ---------- */
+const $ = id => document.getElementById(id);
+const stages = [...document.querySelectorAll('.stage')];
+const show = id => { stages.forEach(s => s.classList.toggle('on', s.id === id)); };
+const norm = s => s.toUpperCase().replace(/[^A-Z0-9]/g,'');
+
+let trace = 0, ticker = null, opened = new Set();
+
+function bump(n){
+  if(!CONFIG.TRACE.ENABLED) return;
+  trace = Math.min(100, trace + n);
+  $('fill').style.width = trace + '%';
+  $('tracepct').textContent = Math.floor(trace) + '%';
+  $('fill').style.background = trace > 70 ? '#8B1A1A' : trace > 40 ? '#B8901C' : '#4C7A3F';
+  if(trace >= 100){ clearInterval(ticker); show('burn'); }
+}
+
+function startTrace(){
+  if(!CONFIG.TRACE.ENABLED || ticker) return;
+  ticker = setInterval(() => bump(CONFIG.TRACE.PER_SECOND), 1000);
+}
+
+/* ---------- stage 1 ---------- */
+$('agree').onclick = () => { show('logon'); $('pwd').focus(); };
+
+/* ---------- stage 2 ---------- */
+function tryLogin(){
+  if(norm($('pwd').value) === norm(CONFIG.PASSWORD)){
+    $('e1').textContent = '';
+    show('crypt'); $('key').focus();
+  } else {
+    $('e1').textContent = 'The user name or password is incorrect. Attempt logged.';
+    bump(CONFIG.TRACE.PER_MISTAKE);
+  }
+}
+$('login').onclick = tryLogin;
+$('pwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+
+/* ---------- stage 3 ---------- */
+function tryMount(){
+  if(norm($('key').value) === norm(CONFIG.PASSPHRASE)){
+    $('e2').textContent = '';
+    buildDesk(); show('deskstage'); startTrace();
+  } else {
+    $('e2').textContent = 'Passphrase rejected. Volume remains locked.';
+    bump(CONFIG.TRACE.PER_MISTAKE);
+  }
+}
+$('mount').onclick = tryMount;
+$('key').addEventListener('keydown', e => { if(e.key === 'Enter') tryMount(); });
+
+/* ---------- stage 4 ---------- */
+function buildDesk(){
+  const desk = $('desk');
+  desk.innerHTML = '';
+  FILES.forEach(([name, body], i) => {
+    const b = document.createElement('button');
+    b.className = 'icon';
+    b.innerHTML = '<span class="sheet"><b>' + (i+1) + '</b></span>';
+    b.appendChild(document.createTextNode(name));
+    b.onclick = () => openFile(i, name, body, b);
+    desk.appendChild(b);
+  });
+}
+
+function openFile(i, name, body, btn){
+  $('winname').textContent = name;
+  $('winbody').textContent = body;
+  $('modal').classList.add('on');
+  $('closewin').focus();
+  if(!opened.has(i)){
+    opened.add(i);
+    btn.classList.add('seen');
+    bump(CONFIG.TRACE.PER_FILE);
+    $('opened').textContent = 'Opened ' + opened.size + ' of ' + FILES.length;
+    if(opened.size === FILES.length) $('submit').disabled = false;
+  }
+}
+const closeWin = () => $('modal').classList.remove('on');
+$('closewin').onclick = closeWin;
+$('closewin2').onclick = closeWin;
+$('modal').addEventListener('click', e => { if(e.target === $('modal')) closeWin(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeWin(); });
+
+$('submit').onclick = () => { show('answer'); $('ans').focus(); };
+$('back').onclick = () => show('deskstage');
+
+/* ---------- stage 5 ---------- */
+function tryAnswer(){
+  if(norm($('ans').value) === norm(CONFIG.ANSWER)){
+    clearInterval(ticker);
+    $('donetext').textContent =
+      'String recorded. Session closed cleanly. No audit flag raised. ' +
+      'You were not here.';
+    show('done');
+  } else {
+    $('e3').textContent = 'String does not validate. Check the order of the files.';
+    bump(CONFIG.TRACE.PER_MISTAKE);
+  }
+}
+$('check').onclick = tryAnswer;
+$('ans').addEventListener('keydown', e => { if(e.key === 'Enter') tryAnswer(); });
+
+/* ---------- restart ---------- */
+function restart(){
+  clearInterval(ticker); ticker = null; trace = 0; opened = new Set();
+  $('fill').style.width = '0'; $('tracepct').textContent = '0%';
+  $('opened').textContent = 'Opened 0 of 11';
+  $('submit').disabled = true;
+  ['pwd','key','ans'].forEach(id => $(id).value = '');
+  ['e1','e2','e3'].forEach(id => $(id).textContent = '');
+  show('consent');
+}
+$('retry').onclick = restart;
+$('retry2').onclick = restart;
+
+/* ---------- handler card: Ctrl+Shift+H ---------- */
+document.addEventListener('keydown', e => {
+  if(e.ctrlKey && e.shiftKey && (e.key === 'H' || e.key === 'h')){
+    e.preventDefault();
+    alert(
+      'HANDLER SOLUTION\n\n' +
+      '1. Password: ' + CONFIG.PASSWORD + '\n' +
+      '   (asset tag on the bezel: NAVSTA BOSTON, hull DDG-003)\n\n' +
+      '2. Passphrase: ' + CONFIG.PASSPHRASE + '\n' +
+      '   (FDUFRVD shifted back by the hull number, 3)\n\n' +
+      '3. Third letter of each filename, in order:\n   ' +
+      CONFIG.ANSWER + '\n\n' +
+      'Audit meter: ' + (CONFIG.TRACE.ENABLED ? 'on' : 'off') +
+      ' — currently ' + Math.floor(trace) + '%'
+    );
+  }
+});
+</script>
+</body>
+</html>
