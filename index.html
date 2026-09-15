@@ -215,7 +215,7 @@ ROTATION VALUE .. SEE ASSET TAG
             <div id="bar"><div id="fill"></div></div>
             <span id="tracepct" class="mono">0%</span>
           </div>
-          <button id="submit" disabled>Submit findings</button>
+          <button id="submit">Submit findings</button>
         </div>
       </div>
       <div id="modal">
@@ -279,6 +279,9 @@ const CONFIG = {
   PASSWORD:   "BOSTON003",
   PASSPHRASE: "CARCOSA",
   ANSWER:     "IAMAWAKENOW",
+  // true = players must open all 11 files before "Submit findings" unlocks.
+  // false = the button is live from the start; files stay clickable.
+  REQUIRE_ALL_FILES: false,
   TRACE: { ENABLED:true, PER_SECOND:0.35, PER_FILE:2, PER_MISTAKE:12 }
 };
 
@@ -351,7 +354,7 @@ $('pwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); })
 function tryMount(){
   if(norm($('key').value) === norm(CONFIG.PASSPHRASE)){
     $('e2').textContent = '';
-    buildDesk(); show('deskstage'); startTrace();
+    buildDesk(); applyGate(); show('deskstage'); startTrace();
   } else {
     $('e2').textContent = 'Passphrase rejected. Volume remains locked.';
     bump(CONFIG.TRACE.PER_MISTAKE);
@@ -384,8 +387,12 @@ function openFile(i, name, body, btn){
     btn.classList.add('seen');
     bump(CONFIG.TRACE.PER_FILE);
     $('opened').textContent = 'Opened ' + opened.size + ' of ' + FILES.length;
-    if(opened.size === FILES.length) $('submit').disabled = false;
+    applyGate();
   }
+}
+
+function applyGate(){
+  $('submit').disabled = CONFIG.REQUIRE_ALL_FILES && opened.size < FILES.length;
 }
 const closeWin = () => $('modal').classList.remove('on');
 $('closewin').onclick = closeWin;
@@ -417,7 +424,7 @@ function restart(){
   clearInterval(ticker); ticker = null; trace = 0; opened = new Set();
   $('fill').style.width = '0'; $('tracepct').textContent = '0%';
   $('opened').textContent = 'Opened 0 of 11';
-  $('submit').disabled = true;
+  applyGate();
   ['pwd','key','ans'].forEach(id => $(id).value = '');
   ['e1','e2','e3'].forEach(id => $(id).textContent = '');
   show('consent');
