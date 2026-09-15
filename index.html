@@ -118,6 +118,12 @@ h2{font-size:15px;margin:0 0 6px}
   position:absolute;bottom:3px;left:0;right:0;text-align:center;
   font-size:8px;color:#55554E;text-shadow:none;font-family:"Courier New",monospace;
 }
+#statusbar{
+  flex:none;background:var(--chrome);border-top:2px solid #E4E4DC;
+  padding:6px 12px;display:flex;gap:10px;align-items:center;justify-content:flex-end;
+  font-size:11.5px;
+}
+#statusbar[hidden]{display:none}
 #taskbar{
   flex:none;background:var(--chrome);border-top:2px solid #E4E4DC;
   padding:6px 10px;display:flex;gap:14px;align-items:center;justify-content:space-between;
@@ -210,11 +216,6 @@ ROTATION VALUE .. SEE ASSET TAG
         <div id="desk"></div>
         <div id="taskbar">
           <span id="opened">Opened 0 of 11</span>
-          <div id="trace">
-            <span>Network audit</span>
-            <div id="bar"><div id="fill"></div></div>
-            <span id="tracepct" class="mono">0%</span>
-          </div>
           <button id="submit">Submit findings</button>
         </div>
       </div>
@@ -258,6 +259,12 @@ ROTATION VALUE .. SEE ASSET TAG
       </div>
     </section>
 
+    <div id="statusbar" hidden>
+      <span>Network audit</span>
+      <div id="bar"><div id="fill"></div></div>
+      <span id="tracepct" class="mono">0%</span>
+    </div>
+
   </div>
   <div id="tag">PROPERTY OF U.S. NAVY · NAVSTA BOSTON · HULL DDG-003 · NMCI ASSET 41-7729</div>
 </div>
@@ -282,7 +289,7 @@ const CONFIG = {
   // true = players must open all 11 files before "Submit findings" unlocks.
   // false = the button is live from the start; files stay clickable.
   REQUIRE_ALL_FILES: false,
-  TRACE: { ENABLED:true, PER_SECOND:0.35, PER_FILE:2, PER_MISTAKE:12 }
+  TRACE: { ENABLED:true, PER_SECOND:0.2, PER_FILE:2, PER_MISTAKE:12 }
 };
 
 /* Files. Third letter of each name, in this order, spells the answer.
@@ -331,11 +338,12 @@ function bump(n){
 
 function startTrace(){
   if(!CONFIG.TRACE.ENABLED || ticker) return;
+  $('statusbar').hidden = false;
   ticker = setInterval(() => bump(CONFIG.TRACE.PER_SECOND), 1000);
 }
 
 /* ---------- stage 1 ---------- */
-$('agree').onclick = () => { show('logon'); $('pwd').focus(); };
+$('agree').onclick = () => { show('logon'); $('pwd').focus(); startTrace(); };
 
 /* ---------- stage 2 ---------- */
 function tryLogin(){
@@ -354,7 +362,7 @@ $('pwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); })
 function tryMount(){
   if(norm($('key').value) === norm(CONFIG.PASSPHRASE)){
     $('e2').textContent = '';
-    buildDesk(); applyGate(); show('deskstage'); startTrace();
+    buildDesk(); applyGate(); show('deskstage');
   } else {
     $('e2').textContent = 'Passphrase rejected. Volume remains locked.';
     bump(CONFIG.TRACE.PER_MISTAKE);
@@ -423,6 +431,7 @@ $('ans').addEventListener('keydown', e => { if(e.key === 'Enter') tryAnswer(); }
 function restart(){
   clearInterval(ticker); ticker = null; trace = 0; opened = new Set();
   $('fill').style.width = '0'; $('tracepct').textContent = '0%';
+  $('statusbar').hidden = true;
   $('opened').textContent = 'Opened 0 of 11';
   applyGate();
   ['pwd','key','ans'].forEach(id => $(id).value = '');
